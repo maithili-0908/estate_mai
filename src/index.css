@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased;
+  }
+  h1, h2, h3 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gold text-ink font-semibold px-6 py-3 rounded-xl transition-all duration-200
+    hover:bg-gold-300 hover:-translate-y-0.5 hover:shadow-gold active:scale-95 inline-flex items-center gap-2;
+  }
+  .btn-secondary {
+    @apply bg-transparent border-2 border-gold text-gold font-semibold px-6 py-3 rounded-xl transition-all duration-200
+    hover:bg-gold hover:text-ink active:scale-95 inline-flex items-center gap-2;
+  }
+  .btn-dark {
+    @apply bg-ink text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200
+    hover:bg-ink-400 hover:-translate-y-0.5 active:scale-95 inline-flex items-center gap-2;
+  }
+  .btn-ghost {
+    @apply bg-transparent text-ink font-medium px-4 py-2 rounded-lg transition-all duration-200
+    hover:bg-stone-100 active:scale-95 inline-flex items-center gap-2;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-stone-200 overflow-hidden
+    transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover;
+  }
+  .input-field {
+    @apply w-full border border-stone-200 rounded-xl px-4 py-3 font-sans text-sm text-ink
+    bg-stone-50 outline-none transition-all duration-200
+    focus:border-gold focus:bg-white focus:ring-2 focus:ring-gold/20
+    placeholder:text-stone-400;
+  }
+  .select-field {
+    @apply w-full border border-stone-200 rounded-xl px-4 py-3 font-sans text-sm text-ink
+    bg-stone-50 outline-none transition-all duration-200 cursor-pointer appearance-none
+    focus:border-gold focus:bg-white focus:ring-2 focus:ring-gold/20;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide;
+  }
+  .badge-gold {
+    @apply badge bg-gold text-ink;
+  }
+  .badge-dark {
+    @apply badge bg-ink text-white;
+  }
+  .badge-green {
+    @apply badge bg-emerald-500 text-white;
+  }
+  .badge-purple {
+    @apply badge bg-purple-600 text-white;
+  }
+  .section-title {
+    @apply font-serif text-3xl md:text-4xl font-bold text-ink leading-tight;
+  }
+  .section-subtitle {
+    @apply text-stone-600 text-base leading-relaxed mt-2 max-w-lg;
+  }
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-stone-600 font-medium text-sm
+    transition-all duration-200 hover:bg-stone-100 hover:text-ink cursor-pointer;
+  }
+  .sidebar-link.active {
+    @apply bg-gold/10 text-gold-700 border border-gold/20;
+  }
+  .stat-card {
+    @apply bg-white rounded-2xl p-5 border border-stone-200 shadow-card;
+  }
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/40;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gold-gradient;
+  }
+  .divider {
+    @apply border-t border-stone-200;
+  }
+  .tag {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-600;
+  }
+  .nav-item {
+    @apply text-sm font-medium text-stone-300 hover:text-white transition-colors duration-200 cursor-pointer;
+  }
+  .nav-item.active {
+    @apply text-gold;
+  }
+  /* Loading skeleton */
+  .skeleton {
+    @apply bg-stone-200 rounded animate-pulse;
+  }
+  /* Scrollbar hidden for horizontal scroll */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+@layer utilities {
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
+  .animation-delay-600 { animation-delay: 600ms; }
+}
+
+/* Swiper overrides */
+.swiper-pagination-bullet-active { background: #C9A84C !important; }
+.swiper-button-next, .swiper-button-prev {
+  color: #C9A84C !important;
+  background: rgba(255,255,255,0.9);
+  border-radius: 50%;
+  width: 40px !important;
+  height: 40px !important;
+}
+.swiper-button-next::after, .swiper-button-prev::after { font-size: 14px !important; font-weight: bold; }
