@@ -82,7 +82,7 @@ npm start
 - `npm run build` - build frontend production bundle
 - `npm run backend` - run backend in dev mode
 - `npm run backend:start` - run backend in production mode
-- `npm run backend:seed` - seed MongoDB with demo data
+- `npm run backend:seed` - seed MongoDB with demo dat
 
 ## API Overview
 - Auth: `/api/auth/login`, `/api/auth/register`, `/api/auth/me`
