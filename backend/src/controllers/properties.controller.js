@@ -4,6 +4,10 @@ const { generateId } = require("../utils/id");
 const { formatPriceLabel } = require("../utils/price");
 const { syncAgentMetrics } = require("../utils/agentSync");
 
+function escapeRegex(input = "") {
+  return String(input).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function normalizePropertyInput(body) {
   const status = body.status || "For Sale";
   const price = Number(body.price || 0);
@@ -42,8 +46,12 @@ function normalizePropertyInput(body) {
 
 async function listProperties(req, res, next) {
   try {
+    const includePendingRequested = req.query.includePending === "true";
+    const canViewPending = req.user?.role === "admin";
+
     const query = {
-      pendingApproval: req.query.includePending === "true" ? { $in: [true, false] } : false,
+      pendingApproval:
+        includePendingRequested && canViewPending ? { $in: [true, false] } : false,
     };
 
     if (req.query.type) query.type = req.query.type;
@@ -51,6 +59,36 @@ async function listProperties(req, res, next) {
     if (req.query.city) query.city = req.query.city;
     if (req.query.agentId) query.agentId = req.query.agentId;
     if (req.query.featured === "true") query.featured = true;
+
+    if (req.query.keyword) {
+      const keyword = escapeRegex(req.query.keyword.trim());
+      if (keyword) {
+        const regex = new RegExp(keyword, "i");
+        query.$or = [
+          { title: regex },
+          { address: regex },
+          { city: regex },
+          { state: regex },
+          { type: regex },
+          { description: regex },
+        ];
+      }
+    }
+
+    if (req.query.beds) {
+      const minBeds = Number(req.query.beds);
+      if (!Number.isNaN(minBeds) && minBeds > 0) {
+        query.bedrooms = { $gte: minBeds };
+      }
+    }
+
+    const minPrice = Number(req.query.minPrice);
+    const maxPrice = Number(req.query.maxPrice);
+    if (!Number.isNaN(minPrice) || !Number.isNaN(maxPrice)) {
+      query.price = {};
+      if (!Number.isNaN(minPrice)) query.price.$gte = minPrice;
+      if (!Number.isNaN(maxPrice)) query.price.$lte = maxPrice;
+    }
 
     const properties = await Property.find(query).sort({ createdAt: -1 });
     res.json(properties);

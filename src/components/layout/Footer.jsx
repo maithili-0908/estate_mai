@@ -97,7 +97,7 @@ export default function Footer() {
 
       <div className="border-t border-white/8">
         <div className="page-container py-5 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-stone-500">© 2024 LuxEstate. All rights reserved.</p>
+          <p className="text-xs text-stone-500">(c) 2024 LuxEstate. All rights reserved.</p>
           <div className="flex items-center gap-4">
             {["Privacy Policy", "Terms of Service", "Cookie Policy"].map((l) => (
               <a key={l} href="#" className="text-xs text-stone-500 hover:text-gold transition-colors">{l}</a>

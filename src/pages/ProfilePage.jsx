@@ -1,11 +1,11 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FiUser, FiMail, FiPhone, FiMapPin, FiLock, FiBell, FiSave, FiCamera } from "react-icons/fi";
+import { FiUser, FiMail, FiPhone, FiMapPin, FiLock, FiSave, FiCamera, FiEye, FiEyeOff } from "react-icons/fi";
 import { useApp } from "../context/AppContext";
 import toast from "react-hot-toast";
 
 export default function ProfilePage() {
-  const { user, updateProfile, updatePassword, updateSettings, deleteMyAccount } = useApp();
+  const { user, updateProfile, updatePassword, deleteMyAccount } = useApp();
   const [tab, setTab] = useState("profile");
   const [form, setForm] = useState({
     name: user?.name || "",
@@ -14,8 +14,8 @@ export default function ProfilePage() {
     location: user?.location || "",
     bio: user?.bio || "",
   });
-  const [notifs, setNotifs] = useState({ email: true, sms: false, viewings: true, messages: true, listings: true });
   const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 
   useEffect(() => {
     setForm({
@@ -81,7 +81,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <h1 className="font-serif text-2xl font-bold text-white">{user.name}</h1>
-              <p className="text-stone-400 text-sm capitalize">{user.role} account · {user.email}</p>
+              <p className="text-stone-400 text-sm capitalize">{user.role} account | {user.email}</p>
             </div>
           </div>
         </div>
@@ -94,7 +94,6 @@ export default function ProfilePage() {
               {[
                 { id: "profile", label: "Profile Info", icon: FiUser },
                 { id: "security", label: "Security", icon: FiLock },
-                { id: "notifications", label: "Notifications", icon: FiBell },
               ].map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setTab(id)} className={`sidebar-link w-full ${tab === id ? "active" : ""}`}>
                   <Icon className="text-base" /> {label}
@@ -160,12 +159,20 @@ export default function ProfilePage() {
                     <div className="relative">
                       <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 text-sm" />
                       <input
-                        type="password"
+                        type={showCurrentPassword ? "text" : "password"}
                         placeholder="Current password"
-                        className="input-field pl-10"
+                        className="input-field pl-10 pr-10"
                         value={passwordForm.current}
                         onChange={(e) => setPasswordForm((prev) => ({ ...prev, current: e.target.value }))}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-gold transition-colors"
+                        aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
+                      >
+                        {showCurrentPassword ? <FiEyeOff className="text-sm" /> : <FiEye className="text-sm" />}
+                      </button>
                     </div>
                   </div>
                   <div>
@@ -197,73 +204,25 @@ export default function ProfilePage() {
                   <button onClick={handlePasswordUpdate} className="btn-primary">Update Password</button>
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-stone-200">
-                  <h3 className="font-semibold text-sm text-ink mb-3">Danger Zone</h3>
-                  <button
-                    onClick={async () => {
-                      if (!window.confirm("Permanently delete your account?")) return;
-                      try {
-                        await deleteMyAccount();
-                        toast.success("Account deleted");
-                      } catch (err) {
-                        toast.error(err?.response?.data?.message || "Could not delete account");
-                      }
-                    }}
-                    className="flex items-center gap-2 text-xs text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl transition-colors font-medium"
-                  >
-                    Delete Account
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {tab === "notifications" && (
-              <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-6">
-                <h2 className="font-serif font-semibold text-xl text-ink mb-5">Notification Preferences</h2>
-                <div className="space-y-4">
-                  {[
-                    { key: "email", label: "Email Notifications", desc: "Receive updates via email" },
-                    { key: "sms", label: "SMS Notifications", desc: "Receive text message alerts" },
-                    { key: "viewings", label: "Viewing Reminders", desc: "Reminders for scheduled viewings" },
-                    { key: "messages", label: "New Messages", desc: "Alerts when you receive new messages" },
-                    { key: "listings", label: "New Listings", desc: "Alerts for new properties matching your criteria" },
-                  ].map(({ key, label, desc }) => (
-                    <div key={key} className="flex items-center justify-between p-4 rounded-xl bg-stone-50 border border-stone-200">
-                      <div>
-                        <p className="text-sm font-semibold text-ink">{label}</p>
-                        <p className="text-xs text-stone-400 mt-0.5">{desc}</p>
-                      </div>
-                      <button onClick={() => setNotifs((n) => ({ ...n, [key]: !n[key] }))}
-                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${notifs[key] ? "bg-gold" : "bg-stone-300"}`}>
-                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${notifs[key] ? "translate-x-6" : "translate-x-1"}`} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-5">
-                  <button
-                    onClick={async () => {
-                      try {
-                        await updateSettings({
-                          notifications: {
-                            emailInquiries: notifs.email,
-                            emailViewings: notifs.viewings,
-                            emailNewsletter: notifs.listings,
-                            smsViewings: notifs.sms,
-                            smsMessages: notifs.messages || notifs.sms,
-                            pushAll: true,
-                          },
-                        });
-                        toast.success("Preferences saved!");
-                      } catch (err) {
-                        toast.error(err?.response?.data?.message || "Could not save preferences");
-                      }
-                    }}
-                    className="btn-primary"
-                  >
-                    <FiSave /> Save Preferences
-                  </button>
-                </div>
+                {user.role === "user" && (
+                  <div className="mt-8 pt-6 border-t border-stone-200">
+                    <h3 className="font-semibold text-sm text-ink mb-3">Danger Zone</h3>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm("Permanently delete your account?")) return;
+                        try {
+                          await deleteMyAccount();
+                          toast.success("Account deleted");
+                        } catch (err) {
+                          toast.error(err?.response?.data?.message || "Could not delete account");
+                        }
+                      }}
+                      className="flex items-center gap-2 text-xs text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl transition-colors font-medium"
+                    >
+                      Delete Account
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

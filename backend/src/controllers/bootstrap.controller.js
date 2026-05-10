@@ -73,11 +73,17 @@ async function bootstrap(req, res, next) {
     }
 
     if (user.role === "user") {
-      const appointments = await Appointment.find({
-        clientEmail: user.email,
-      }).sort({ createdAt: -1 });
+      const [appointments, messages] = await Promise.all([
+        Appointment.find({
+          $or: [{ clientUserId: user.id }, { clientEmail: user.email }],
+        }).sort({ createdAt: -1 }),
+        Message.find({
+          $or: [{ userId: user.id }, { fromEmail: user.email }],
+        }).sort({ createdAt: -1 }),
+      ]);
 
       payload.appointments = appointments;
+      payload.messages = messages;
     }
 
     if (user.role === "admin") {

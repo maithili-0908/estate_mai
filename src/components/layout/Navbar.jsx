@@ -3,11 +3,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 import {
   FiMenu, FiX, FiBell, FiHeart, FiUser, FiChevronDown,
-  FiLogOut, FiSettings, FiBarChart2, FiHome, FiGrid
+  FiLogOut, FiBarChart2, FiHome, FiGrid
 } from "react-icons/fi";
 
 export default function Navbar() {
-  const { user, logout, unreadCount, savedProperties, notifications, markNotificationsRead } = useApp();
+  const { user, logout, unreadCount, savedProperties, notifications, messages, markNotificationsRead } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
@@ -15,6 +15,11 @@ export default function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const menuRef = useRef();
+  const unreadInboxCount = (messages || []).filter((message) => {
+    const direction = message.direction || "toAgent";
+    const isIncoming = user?.role === "user" ? direction === "toUser" : direction !== "toUser";
+    return isIncoming && message.unread;
+  }).length;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -43,6 +48,20 @@ export default function Navbar() {
   ];
 
   const handleLogout = () => { logout(); setUserMenuOpen(false); navigate("/"); };
+  const handleNotificationClick = (notification) => {
+    if (!notification) return;
+
+    if (notification.type === "appointment") {
+      setNotifOpen(false);
+      navigate("/dashboard?tab=appointments");
+      return;
+    }
+
+    if (notification.type === "message") {
+      setNotifOpen(false);
+      navigate("/dashboard?tab=messages");
+    }
+  };
 
   return (
     <nav
@@ -94,7 +113,7 @@ export default function Navbar() {
           </Link>
 
           {/* Notifications */}
-          {user && (
+          {user && user.role !== "admin" && (
             <div className="relative">
               <button
                 onClick={() => { setNotifOpen(!notifOpen); setUserMenuOpen(false); }}
@@ -139,7 +158,11 @@ export default function Navbar() {
                                 : "N";
 
                       return (
-                      <div key={n.id} className={`px-4 py-3 flex items-start gap-3 hover:bg-stone-50 cursor-pointer border-b border-stone-100 last:border-0 ${!n.read ? "bg-gold/5" : ""}`}>
+                      <div
+                        key={n.id}
+                        onClick={() => handleNotificationClick(n)}
+                        className={`px-4 py-3 flex items-start gap-3 hover:bg-stone-50 cursor-pointer border-b border-stone-100 last:border-0 ${!n.read ? "bg-gold/5" : ""}`}
+                      >
                         <span className="text-lg mt-0.5">{icon}</span>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm text-ink leading-snug ${!n.read ? "font-medium" : ""}`}>{n.message}</p>
@@ -172,10 +195,18 @@ export default function Navbar() {
                     <p className="text-xs text-stone-400 capitalize">{user.role}</p>
                   </div>
                   <div className="p-1.5">
-                    {(user.role === "agent" || user.role === "admin") && (
+                    {user && (
                       <Link to="/dashboard" onClick={() => setUserMenuOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-ink hover:bg-stone-50 transition-colors">
-                        <FiGrid className="text-gold" /> Dashboard
+                        <FiGrid className="text-gold" />
+                        <span className="flex items-center gap-1.5">
+                          {user.role === "user" ? "Messages" : "Dashboard"}
+                          {unreadInboxCount > 0 && (
+                            <span className="min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                              {unreadInboxCount}
+                            </span>
+                          )}
+                        </span>
                       </Link>
                     )}
                     {user.role === "admin" && (
@@ -187,10 +218,6 @@ export default function Navbar() {
                     <Link to="/profile" onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-ink hover:bg-stone-50 transition-colors">
                       <FiUser className="text-gold" /> Profile
-                    </Link>
-                    <Link to="/settings" onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-ink hover:bg-stone-50 transition-colors">
-                      <FiSettings className="text-gold" /> Settings
                     </Link>
                     <button onClick={handleLogout}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-colors mt-0.5">
@@ -235,7 +262,14 @@ export default function Navbar() {
           <div className="pt-2 border-t border-white/10 mt-2">
             {user ? (
               <>
-                <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="block px-4 py-3 rounded-xl text-sm text-stone-300 hover:text-white hover:bg-white/10">Dashboard</Link>
+                <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="block px-4 py-3 rounded-xl text-sm text-stone-300 hover:text-white hover:bg-white/10">
+                  {user.role === "user" ? "Messages" : "Dashboard"}
+                </Link>
+                {unreadInboxCount > 0 && (
+                  <div className="px-4 -mt-1 mb-1 text-[10px] text-red-400 font-semibold">
+                    {unreadInboxCount} new message{unreadInboxCount > 1 ? "s" : ""}
+                  </div>
+                )}
                 <button onClick={() => { handleLogout(); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 rounded-xl text-sm text-red-400 hover:bg-white/10">Sign Out</button>
               </>
             ) : (

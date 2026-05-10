@@ -1,5 +1,13 @@
-﻿const jwt = require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+
+function getJwtSecret() {
+  const secret = String(process.env.JWT_SECRET || "").trim();
+  if (!secret) {
+    throw new Error("JWT_SECRET is required");
+  }
+  return secret;
+}
 
 function extractToken(req) {
   const authHeader = req.headers.authorization || "";
@@ -11,8 +19,10 @@ async function attachUserFromToken(req) {
   const token = extractToken(req);
   if (!token) return null;
 
+  const jwtSecret = getJwtSecret();
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "dev-secret");
+    const decoded = jwt.verify(token, jwtSecret);
     const user = await User.findOne({ id: decoded.id }).select("-password");
     return user;
   } catch (_err) {
@@ -61,15 +71,15 @@ function requireRole(...roles) {
 function signToken(user) {
   return jwt.sign(
     { id: user.id, role: user.role, email: user.email },
-    process.env.JWT_SECRET || "dev-secret",
+    getJwtSecret(),
     { expiresIn: "7d" }
   );
 }
 
 module.exports = {
+  getJwtSecret,
   optionalAuth,
   protect,
   requireRole,
   signToken,
 };
-

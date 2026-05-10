@@ -1,5 +1,5 @@
-﻿import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   FiHome,
   FiPlusCircle,
@@ -19,27 +19,51 @@ import { useApp } from "../context/AppContext";
 import toast from "react-hot-toast";
 import PropertyFormModal from "../components/dashboard/PropertyFormModal";
 
-const TABS = ["Overview", "My Listings", "Appointments", "Messages", "Analytics"];
+const AGENT_TABS = ["Overview", "My Listings", "Appointments", "Messages", "Analytics"];
+const USER_TABS = ["Overview", "Appointments", "Messages"];
+const TAB_QUERY_TO_LABEL = {
+  overview: "Overview",
+  listings: "My Listings",
+  appointments: "Appointments",
+  messages: "Messages",
+  analytics: "Analytics",
+};
+const TAB_LABEL_TO_QUERY = {
+  Overview: "overview",
+  "My Listings": "listings",
+  Appointments: "appointments",
+  Messages: "messages",
+  Analytics: "analytics",
+};
 
 export default function DashboardPage() {
   const {
     user,
     properties,
+    agents,
     appointments,
     messages,
     deleteProperty,
+    sendAgentMessage,
+    replyToMessage,
     updateAppointmentStatus,
     markMessageRead,
   } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isUserRole = user?.role === "user";
+  const tabs = isUserRole ? USER_TABS : AGENT_TABS;
   const [activeTab, setActiveTab] = useState("Overview");
   const [showModal, setShowModal] = useState(false);
   const [editProp, setEditProp] = useState(null);
+  const [selectedConversationKey, setSelectedConversationKey] = useState("");
+  const [draftMessage, setDraftMessage] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   if (!user) {
     return (
       <div className="pt-24 min-h-screen bg-stone-100 flex items-center justify-center text-center px-4">
         <div>
-          <div className="text-6xl mb-4">??</div>
+          <div className="text-6xl mb-4">!</div>
           <h2 className="font-serif text-2xl font-bold text-ink mb-2">Sign In Required</h2>
           <p className="text-stone-500 text-sm mb-5">Please sign in to access your dashboard.</p>
           <Link to="/login" className="btn-primary">Sign In</Link>
@@ -52,6 +76,138 @@ export default function DashboardPage() {
     ? properties.filter((property) => property.agentId === user.agentId)
     : properties.slice(0, 4);
 
+  const conversations = useMemo(() => {
+    const groups = new Map();
+    const agentMap = new Map((agents || []).map((agent) => [agent.id, agent]));
+
+    (messages || []).forEach((message) => {
+      const direction = message.direction || "toAgent";
+
+      let key = "";
+      let partnerName = "";
+      let partnerSubtitle = "";
+      let partnerAvatar = "";
+      let conversationAgentId = message.agentId || "";
+
+      if (isUserRole) {
+        if (!message.agentId) return;
+        const agent = agentMap.get(message.agentId);
+        key = `agent:${message.agentId}`;
+        partnerName = agent?.name || message.toName || "Agent";
+        partnerSubtitle = agent?.email || message.toEmail || "";
+        partnerAvatar =
+          agent?.avatar || "https://randomuser.me/api/portraits/lego/9.jpg";
+      } else {
+        const recipientEmail = direction === "toUser" ? message.toEmail : message.fromEmail;
+        const recipientName = direction === "toUser" ? message.toName : message.fromName;
+        const emailKey = String(recipientEmail || "").toLowerCase();
+        key = `client:${message.userId || emailKey || message.id}`;
+        partnerName = recipientName || "Client";
+        partnerSubtitle = recipientEmail || "";
+        partnerAvatar =
+          direction === "toUser"
+            ? "https://randomuser.me/api/portraits/lego/6.jpg"
+            : message.avatar || "https://randomuser.me/api/portraits/lego/6.jpg";
+      }
+
+      const existing = groups.get(key) || {
+        key,
+        partnerName,
+        partnerSubtitle,
+        partnerAvatar,
+        agentId: conversationAgentId,
+        items: [],
+        unreadCount: 0,
+        lastMessage: null,
+      };
+
+      existing.items.push(message);
+
+      const isIncoming = isUserRole ? direction === "toUser" : direction !== "toUser";
+      if (isIncoming && message.unread) {
+        existing.unreadCount += 1;
+      }
+
+      groups.set(key, existing);
+    });
+
+    return Array.from(groups.values())
+      .map((conversation) => {
+        const sortedItems = [...conversation.items].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        return {
+          ...conversation,
+          items: sortedItems,
+          lastMessage: sortedItems[sortedItems.length - 1] || null,
+          replyAnchorId: sortedItems[sortedItems.length - 1]?.id || "",
+        };
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.lastMessage?.createdAt || 0).getTime() -
+          new Date(a.lastMessage?.createdAt || 0).getTime()
+      );
+  }, [agents, isUserRole, messages]);
+
+  const selectedConversation = useMemo(
+    () => conversations.find((conversation) => conversation.key === selectedConversationKey) || null,
+    [conversations, selectedConversationKey]
+  );
+  const unreadMessagesCount = useMemo(
+    () =>
+      messages.filter((message) => {
+        const direction = message.direction || "toAgent";
+        const isIncoming = isUserRole ? direction === "toUser" : direction !== "toUser";
+        return isIncoming && message.unread;
+      }).length,
+    [isUserRole, messages]
+  );
+
+  useEffect(() => {
+    if (!tabs.includes(activeTab)) {
+      setActiveTab("Overview");
+    }
+  }, [activeTab, tabs]);
+
+  useEffect(() => {
+    const queryTab = String(searchParams.get("tab") || "").toLowerCase();
+    const mappedTab = TAB_QUERY_TO_LABEL[queryTab];
+    if (!mappedTab) return;
+    if (!tabs.includes(mappedTab)) return;
+    if (mappedTab === activeTab) return;
+    setActiveTab(mappedTab);
+  }, [activeTab, searchParams, tabs]);
+
+  useEffect(() => {
+    if (conversations.length === 0) {
+      setSelectedConversationKey("");
+      return;
+    }
+
+    const exists = conversations.some((conversation) => conversation.key === selectedConversationKey);
+    if (!exists) {
+      setSelectedConversationKey(conversations[0].key);
+    }
+  }, [conversations, selectedConversationKey]);
+
+  useEffect(() => {
+    if (activeTab !== "Messages") return;
+    if (!selectedConversation) return;
+
+    const unreadIncoming = selectedConversation.items.filter((message) => {
+      const direction = message.direction || "toAgent";
+      const isIncoming = isUserRole ? direction === "toUser" : direction !== "toUser";
+      return isIncoming && message.unread;
+    });
+
+    if (unreadIncoming.length === 0) return;
+
+    unreadIncoming.forEach((message) => {
+      markMessageRead(message.id).catch(() => {});
+    });
+  }, [activeTab, isUserRole, markMessageRead, selectedConversation]);
+
   const handleDelete = async (id) => {
     if (!window.confirm("Remove this listing?")) return;
 
@@ -63,12 +219,69 @@ export default function DashboardPage() {
     }
   };
 
-  const stats = [
-    { label: "Active Listings", val: myProperties.length, icon: FiHome, color: "bg-blue-50 text-blue-600" },
-    { label: "Total Views", val: myProperties.reduce((sum, property) => sum + Number(property.views || 0), 0).toLocaleString(), icon: FiEye, color: "bg-purple-50 text-purple-600" },
-    { label: "Appointments", val: appointments.length, icon: FiCalendar, color: "bg-green-50 text-green-600" },
-    { label: "New Messages", val: messages.filter((message) => message.unread).length, icon: FiMessageSquare, color: "bg-gold/10 text-gold-700" },
-  ];
+  const handleSendConversationMessage = async () => {
+    const body = draftMessage.trim();
+    if (!body || !selectedConversation || sendingMessage) return;
+
+    try {
+      setSendingMessage(true);
+
+      if (isUserRole) {
+        if (!selectedConversation.agentId) {
+          throw new Error("Agent unavailable for this conversation");
+        }
+        await sendAgentMessage(selectedConversation.agentId, { message: body });
+      } else {
+        if (!selectedConversation.replyAnchorId) {
+          throw new Error("Conversation unavailable");
+        }
+        await replyToMessage(selectedConversation.replyAnchorId, body);
+      }
+
+      setDraftMessage("");
+      toast.success("Message sent");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Could not send message");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+
+    const params = new URLSearchParams(searchParams);
+    const tabQuery = TAB_LABEL_TO_QUERY[tab];
+    if (!tabQuery || tabQuery === "overview") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tabQuery);
+    }
+    setSearchParams(params);
+  };
+
+  const stats = isUserRole
+    ? [
+        { label: "Appointments", val: appointments.length, icon: FiCalendar, color: "bg-green-50 text-green-600" },
+        {
+          label: "Unread Messages",
+          val: unreadMessagesCount,
+          icon: FiMessageSquare,
+          color: "bg-gold/10 text-gold-700",
+        },
+        { label: "Conversations", val: conversations.length, icon: FiUsers, color: "bg-blue-50 text-blue-600" },
+        { label: "Total Messages", val: messages.length, icon: FiEye, color: "bg-purple-50 text-purple-600" },
+      ]
+    : [
+        { label: "Active Listings", val: myProperties.length, icon: FiHome, color: "bg-blue-50 text-blue-600" },
+        { label: "Total Views", val: myProperties.reduce((sum, property) => sum + Number(property.views || 0), 0).toLocaleString(), icon: FiEye, color: "bg-purple-50 text-purple-600" },
+        { label: "Appointments", val: appointments.length, icon: FiCalendar, color: "bg-green-50 text-green-600" },
+        {
+          label: "New Messages",
+          val: unreadMessagesCount,
+          icon: FiMessageSquare,
+          color: "bg-gold/10 text-gold-700",
+        },
+      ];
 
   return (
     <div className="pt-[68px] min-h-screen bg-stone-100">
@@ -84,21 +297,30 @@ export default function DashboardPage() {
               </span>
             </div>
           </div>
-          <button onClick={() => { setEditProp(null); setShowModal(true); }} className="btn-primary text-sm py-2.5">
-            <FiPlusCircle /> Add New Listing
-          </button>
+          {!isUserRole && (
+            <button onClick={() => { setEditProp(null); setShowModal(true); }} className="btn-primary text-sm py-2.5">
+              <FiPlusCircle /> Add New Listing
+            </button>
+          )}
         </div>
 
         <div className="page-container mt-6 flex gap-1 overflow-x-auto scrollbar-hide">
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabChange(tab)}
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                 activeTab === tab ? "bg-gold text-ink" : "text-stone-400 hover:text-white hover:bg-white/10"
               }`}
             >
-              {tab}
+              <span className="inline-flex items-center gap-2">
+                {tab}
+                {tab === "Messages" && unreadMessagesCount > 0 && (
+                  <span className="min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {unreadMessagesCount}
+                  </span>
+                )}
+              </span>
             </button>
           ))}
         </div>
@@ -123,32 +345,60 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-serif font-semibold text-base text-ink">Recent Listings</h3>
-                  <button onClick={() => setActiveTab("My Listings")} className="text-xs text-gold font-medium hover:underline">View all</button>
-                </div>
-                <div className="space-y-3">
-                  {myProperties.slice(0, 3).map((property) => (
-                    <div key={property.id} className="flex items-center gap-3 p-2.5 hover:bg-stone-50 rounded-xl transition-colors">
-                      <img src={property.images?.[0]} alt={property.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-ink truncate">{property.title}</p>
-                        <p className="text-xs text-stone-400 flex items-center gap-1"><FiMapPin className="text-[10px]" />{property.city}</p>
+              {!isUserRole ? (
+                <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-serif font-semibold text-base text-ink">Recent Listings</h3>
+                    <button onClick={() => handleTabChange("My Listings")} className="text-xs text-gold font-medium hover:underline">View all</button>
+                  </div>
+                  <div className="space-y-3">
+                    {myProperties.slice(0, 3).map((property) => (
+                      <div key={property.id} className="flex items-center gap-3 p-2.5 hover:bg-stone-50 rounded-xl transition-colors">
+                        <img src={property.images?.[0]} alt={property.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-ink truncate">{property.title}</p>
+                          <p className="text-xs text-stone-400 flex items-center gap-1"><FiMapPin className="text-[10px]" />{property.city}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-gold-700">{property.priceLabel}</p>
+                          <p className="text-[10px] text-stone-400">{property.views} views</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-gold-700">{property.priceLabel}</p>
-                        <p className="text-[10px] text-stone-400">{property.views} views</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-serif font-semibold text-base text-ink">Recent Conversations</h3>
+                    <button onClick={() => handleTabChange("Messages")} className="text-xs text-gold font-medium hover:underline">Open inbox</button>
+                  </div>
+                  <div className="space-y-3">
+                    {conversations.slice(0, 3).map((conversation) => (
+                      <div key={conversation.key} className="flex items-center gap-3 p-2.5 rounded-xl border border-stone-100 bg-stone-50/50">
+                        <img src={conversation.partnerAvatar} alt={conversation.partnerName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-ink truncate">{conversation.partnerName}</p>
+                          <p className="text-xs text-stone-500 truncate">{conversation.lastMessage?.preview || conversation.lastMessage?.body || "No messages yet"}</p>
+                        </div>
+                        {conversation.unreadCount > 0 && (
+                          <span className="min-w-5 h-5 px-1 rounded-full bg-gold text-ink text-[10px] font-bold flex items-center justify-center">
+                            {conversation.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {conversations.length === 0 && (
+                      <div className="text-xs text-stone-400 py-2">No conversations yet</div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-serif font-semibold text-base text-ink">Upcoming Appointments</h3>
-                  <button onClick={() => setActiveTab("Appointments")} className="text-xs text-gold font-medium hover:underline">View all</button>
+                  <button onClick={() => handleTabChange("Appointments")} className="text-xs text-gold font-medium hover:underline">View all</button>
                 </div>
                 <div className="space-y-3">
                   {appointments.slice(0, 3).map((appointment) => {
@@ -254,42 +504,51 @@ export default function DashboardPage() {
                         <span className={`badge text-[10px] ${appointment.status === "Confirmed" ? "badge-green" : "bg-amber-100 text-amber-700"}`}>{appointment.status}</span>
                         <span className="tag text-[10px]">{appointment.type}</span>
                       </div>
-                      <p className="text-xs text-stone-500 mb-0.5 truncate">?? {property?.title} — {property?.address}</p>
+                      <p className="text-xs text-stone-500 mb-0.5 truncate">Location: {property?.title} - {property?.address}</p>
+                      {appointment.notes ? (
+                        <p className="text-xs text-stone-600 mb-1">
+                          Description: {appointment.notes}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-stone-400 mb-1">Description: No details provided</p>
+                      )}
                       <div className="flex items-center gap-3 text-xs text-stone-400">
                         <span className="flex items-center gap-1"><FiCalendar className="text-[10px]" />{appointment.date}</span>
                         <span className="flex items-center gap-1"><FiClock className="text-[10px]" />{appointment.time}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button
-                        onClick={async () => {
-                          try {
-                            await updateAppointmentStatus(appointment.id, "Confirmed");
-                            toast.success("Appointment confirmed");
-                          } catch (err) {
-                            toast.error(err?.response?.data?.message || "Could not update appointment");
-                          }
-                        }}
-                        className="p-2 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-                        title="Confirm"
-                      >
-                        <FiCheck className="text-sm" />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await updateAppointmentStatus(appointment.id, "Cancelled");
-                            toast.success("Appointment cancelled");
-                          } catch (err) {
-                            toast.error(err?.response?.data?.message || "Could not update appointment");
-                          }
-                        }}
-                        className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
-                        title="Cancel"
-                      >
-                        <FiX className="text-sm" />
-                      </button>
-                    </div>
+                    {!isUserRole && (
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await updateAppointmentStatus(appointment.id, "Confirmed");
+                              toast.success("Appointment confirmed");
+                            } catch (err) {
+                              toast.error(err?.response?.data?.message || "Could not update appointment");
+                            }
+                          }}
+                          className="p-2 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+                          title="Confirm"
+                        >
+                          <FiCheck className="text-sm" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await updateAppointmentStatus(appointment.id, "Cancelled");
+                              toast.success("Appointment cancelled");
+                            } catch (err) {
+                              toast.error(err?.response?.data?.message || "Could not update appointment");
+                            }
+                          }}
+                          className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                          title="Cancel"
+                        >
+                          <FiX className="text-sm" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -300,36 +559,89 @@ export default function DashboardPage() {
         {activeTab === "Messages" && (
           <div>
             <h2 className="font-serif font-bold text-xl text-ink mb-5">Messages ({messages.length})</h2>
-            <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden">
-              {messages.map((message, index) => (
-                <div key={message.id} className={`flex items-start gap-4 p-5 hover:bg-stone-50 transition-colors cursor-pointer ${index < messages.length - 1 ? "border-b border-stone-100" : ""} ${message.unread ? "bg-gold/4" : ""}`}>
-                  <div className="relative flex-shrink-0">
-                    <img src={message.avatar} alt={message.fromName || "Client"} className="w-11 h-11 rounded-full object-cover" />
-                    {message.unread && <span className="absolute top-0 right-0 w-3 h-3 bg-gold rounded-full border-2 border-white" />}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden">
+                {conversations.length === 0 ? (
+                  <div className="p-6 text-sm text-stone-400 text-center">No conversations yet</div>
+                ) : (
+                  conversations.map((conversation, index) => {
+                    const isSelected = selectedConversationKey === conversation.key;
+                    return (
+                      <button
+                        key={conversation.key}
+                        onClick={() => setSelectedConversationKey(conversation.key)}
+                        className={`w-full text-left px-4 py-3.5 transition-colors ${index < conversations.length - 1 ? "border-b border-stone-100" : ""} ${isSelected ? "bg-gold/10" : "hover:bg-stone-50"}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <img src={conversation.partnerAvatar} alt={conversation.partnerName} className="w-10 h-10 rounded-full object-cover" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className={`text-sm truncate ${conversation.unreadCount > 0 ? "font-semibold text-ink" : "font-medium text-stone-700"}`}>{conversation.partnerName}</p>
+                              <span className="text-[10px] text-stone-400">{conversation.lastMessage?.time || ""}</span>
+                            </div>
+                            <p className="text-xs text-stone-500 truncate">{conversation.lastMessage?.preview || conversation.lastMessage?.body || "No messages yet"}</p>
+                          </div>
+                          {conversation.unreadCount > 0 && (
+                            <span className="min-w-5 h-5 px-1 rounded-full bg-gold text-ink text-[10px] font-bold flex items-center justify-center">
+                              {conversation.unreadCount}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden lg:col-span-2 flex flex-col min-h-[520px]">
+                {!selectedConversation ? (
+                  <div className="flex-1 flex items-center justify-center text-sm text-stone-400 px-4 text-center">
+                    Select a conversation to read and reply.
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className={`text-sm ${message.unread ? "font-bold text-ink" : "font-medium text-stone-700"}`}>{message.fromName || "Unknown"}</p>
-                      <span className="text-[10px] text-stone-400 flex-shrink-0">{message.time}</span>
+                ) : (
+                  <>
+                    <div className="px-5 py-4 border-b border-stone-200">
+                      <p className="font-semibold text-sm text-ink">{selectedConversation.partnerName}</p>
+                      <p className="text-xs text-stone-400">{selectedConversation.partnerSubtitle}</p>
                     </div>
-                    <p className={`text-xs mb-0.5 ${message.unread ? "text-ink font-medium" : "text-stone-600"}`}>{message.subject}</p>
-                    <p className="text-xs text-stone-400 truncate">{message.preview}</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await markMessageRead(message.id);
-                        toast.success("Conversation opened");
-                      } catch (err) {
-                        toast.error(err?.response?.data?.message || "Could not open conversation");
-                      }
-                    }}
-                    className="btn-ghost text-xs border border-stone-200 rounded-xl py-1.5 px-3 flex-shrink-0"
-                  >
-                    Reply
-                  </button>
-                </div>
-              ))}
+
+                    <div className="flex-1 p-4 space-y-3 overflow-y-auto max-h-[420px]">
+                      {selectedConversation.items.map((message) => {
+                        const direction = message.direction || "toAgent";
+                        const isSentByCurrent = isUserRole ? direction !== "toUser" : direction === "toUser";
+
+                        return (
+                          <div key={message.id} className={`flex ${isSentByCurrent ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 border text-sm ${isSentByCurrent ? "bg-gold/15 border-gold/30 text-ink" : "bg-stone-50 border-stone-200 text-stone-700"}`}>
+                              <p className="leading-relaxed whitespace-pre-wrap">{message.body || message.preview}</p>
+                              <p className={`text-[10px] mt-1 ${isSentByCurrent ? "text-gold-800" : "text-stone-400"}`}>{message.time}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="p-4 border-t border-stone-200">
+                      <textarea
+                        value={draftMessage}
+                        onChange={(e) => setDraftMessage(e.target.value)}
+                        rows={3}
+                        placeholder={isUserRole ? "Write your message to the agent..." : "Write your reply to the client..."}
+                        className="input-field text-sm resize-none"
+                      />
+                      <div className="mt-2 flex justify-end">
+                        <button
+                          onClick={handleSendConversationMessage}
+                          disabled={sendingMessage || !draftMessage.trim()}
+                          className={`btn-primary text-sm py-2 ${sendingMessage || !draftMessage.trim() ? "opacity-60 cursor-not-allowed" : ""}`}
+                        >
+                          <FiMessageSquare /> {sendingMessage ? "Sending..." : "Send Message"}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { FiStar, FiMapPin, FiPhone, FiMail, FiInstagram, FiLinkedin, FiTwitter, FiCheck, FiArrowLeft } from "react-icons/fi";
 import PropertyCard from "../components/property/PropertyCard";
 import { useApp } from "../context/AppContext";
@@ -7,11 +7,39 @@ import toast from "react-hot-toast";
 
 export default function AgentProfilePage() {
   const { id } = useParams();
-  const { properties, agents, reviews, sendAgentMessage } = useApp();
+  const [searchParams] = useSearchParams();
+  const { properties, agents, reviews, sendAgentMessage, user } = useApp();
   const agent = agents.find((a) => a.id === id);
-  const [msgForm, setMsgForm] = useState({ name: "", email: "", message: "" });
+  const [msgForm, setMsgForm] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    message: "",
+  });
   const [sent, setSent] = useState(false);
   const [activeTab, setActiveTab] = useState("listings");
+  const contactCardRef = useRef(null);
+  const messageInputRef = useRef(null);
+  const isUserLoggedIn = user?.role === "user";
+  const shouldJumpToContact = searchParams.get("contact") === "1";
+
+  useEffect(() => {
+    setMsgForm((prev) => ({
+      name: user?.name || prev.name || "",
+      email: user?.email || prev.email || "",
+      message: prev.message || "",
+    }));
+  }, [user?.name, user?.email]);
+
+  useEffect(() => {
+    if (!shouldJumpToContact) return;
+
+    contactCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const timer = setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 240);
+
+    return () => clearTimeout(timer);
+  }, [shouldJumpToContact]);
 
   if (!agent) return (
     <div className="pt-24 min-h-screen bg-stone-100 flex items-center justify-center">
@@ -28,10 +56,21 @@ export default function AgentProfilePage() {
   const handleMsg = async (e) => {
     e.preventDefault();
     try {
-      await sendAgentMessage(agent.id, msgForm);
+      const payload = {
+        ...msgForm,
+        name: (msgForm.name || user?.name || "").trim(),
+        email: (msgForm.email || user?.email || "").trim(),
+        message: msgForm.message.trim(),
+      };
+
+      await sendAgentMessage(agent.id, payload);
       toast.success("Message sent to " + agent.name);
       setSent(true);
-      setMsgForm({ name: "", email: "", message: "" });
+      setMsgForm({
+        name: user?.name || "",
+        email: user?.email || "",
+        message: "",
+      });
     } catch (err) {
       toast.error(err?.response?.data?.message || "Could not send message");
     }
@@ -209,7 +248,7 @@ export default function AgentProfilePage() {
           {/* Right: Contact Sidebar */}
           <div className="space-y-5">
             {/* Contact Card */}
-            <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-5">
+            <div ref={contactCardRef} className="bg-white rounded-2xl border border-stone-200 shadow-card p-5">
               <h3 className="font-serif font-semibold text-base text-ink mb-4">Contact {agent.name.split(" ")[0]}</h3>
               {sent ? (
                 <div className="text-center py-6">
@@ -220,9 +259,33 @@ export default function AgentProfilePage() {
                 </div>
               ) : (
                 <form onSubmit={handleMsg} className="space-y-3">
-                  <input type="text" required placeholder="Your Name" value={msgForm.name} onChange={(e) => setMsgForm((f) => ({ ...f, name: e.target.value }))} className="input-field text-sm" />
-                  <input type="email" required placeholder="Email Address" value={msgForm.email} onChange={(e) => setMsgForm((f) => ({ ...f, email: e.target.value }))} className="input-field text-sm" />
-                  <textarea required placeholder="Write your message..." value={msgForm.message} onChange={(e) => setMsgForm((f) => ({ ...f, message: e.target.value }))} rows={4} className="input-field text-sm resize-none" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Your Name"
+                    value={msgForm.name}
+                    readOnly={isUserLoggedIn}
+                    onChange={(e) => setMsgForm((f) => ({ ...f, name: e.target.value }))}
+                    className={`input-field text-sm ${isUserLoggedIn ? "bg-stone-50 text-stone-500 cursor-not-allowed" : ""}`}
+                  />
+                  <input
+                    type="email"
+                    required
+                    placeholder="Email Address"
+                    value={msgForm.email}
+                    readOnly={isUserLoggedIn}
+                    onChange={(e) => setMsgForm((f) => ({ ...f, email: e.target.value }))}
+                    className={`input-field text-sm ${isUserLoggedIn ? "bg-stone-50 text-stone-500 cursor-not-allowed" : ""}`}
+                  />
+                  <textarea
+                    ref={messageInputRef}
+                    required
+                    placeholder="Write your message..."
+                    value={msgForm.message}
+                    onChange={(e) => setMsgForm((f) => ({ ...f, message: e.target.value }))}
+                    rows={4}
+                    className="input-field text-sm resize-none"
+                  />
                   <button type="submit" className="btn-primary w-full justify-center text-sm"><FiMail /> Send Message</button>
                 </form>
               )}

@@ -25,7 +25,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col">
-      {/* ─── HERO ─────────────────────────────────────────────── */}
+      {/* Section */}
       <section className="relative min-h-screen flex items-center overflow-hidden">
         {/* Background images with crossfade */}
         {HERO_IMAGES.map((src, i) => (
@@ -96,13 +96,11 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ─── SEARCH ───────────────────────────────────────────── */}
+      {/* Section */}
       <section className="page-container -mt-10 relative z-20 mb-16">
         <SearchBar />
       </section>
-
-      {/* ─── FEATURED PROPERTIES ─────────────────────────────── */}
+      {/* Section */}
       <section className="page-container mb-20">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -121,8 +119,7 @@ export default function HomePage() {
           <Link to="/properties" className="btn-dark">View All Properties <FiArrowRight /></Link>
         </div>
       </section>
-
-      {/* ─── PROPERTY TYPES ─────────────────────────────────── */}
+      {/* Section */}
       <section className="bg-stone-100 py-20">
         <div className="page-container">
           <div className="text-center mb-10">
@@ -131,12 +128,12 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
-              { label: "Houses", icon: "🏠", count: 312, type: "House" },
-              { label: "Penthouses", icon: "🏙️", count: 84, type: "Penthouse" },
-              { label: "Villas", icon: "🌴", count: 156, type: "Villa" },
-              { label: "Estates", icon: "🏰", count: 48, type: "Estate" },
-              { label: "Chalets", icon: "🏔️", count: 62, type: "Chalet" },
-              { label: "Mansions", icon: "🏛️", count: 94, type: "Mansion" },
+              { label: "Houses", icon: "H", count: 312, type: "House" },
+              { label: "Penthouses", icon: "P", count: 84, type: "Penthouse" },
+              { label: "Villas", icon: "V", count: 156, type: "Villa" },
+              { label: "Estates", icon: "E", count: 48, type: "Estate" },
+              { label: "Chalets", icon: "C", count: 62, type: "Chalet" },
+              { label: "Mansions", icon: "M", count: 94, type: "Mansion" },
             ].map((cat) => (
               <Link
                 key={cat.label}
@@ -151,8 +148,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ─── WHY US ──────────────────────────────────────────── */}
+      {/* Section */}
       <section className="page-container py-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
           <div>
@@ -197,7 +193,7 @@ export default function HomePage() {
               <p className="text-xs text-stone-500 leading-snug">"LuxEstate made our home purchase an absolute pleasure. Truly exceptional."</p>
               <div className="flex items-center gap-2 mt-3">
                 <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="" className="w-6 h-6 rounded-full" />
-                <span className="text-xs text-stone-400">Sarah M. – NYC</span>
+                <span className="text-xs text-stone-400">Sarah M. - NYC</span>
               </div>
             </div>
             <div className="absolute -top-5 -right-5 bg-ink rounded-2xl p-4 shadow-card-hover text-white">
@@ -207,8 +203,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ─── RECENT LISTINGS ─────────────────────────────────── */}
+      {/* Section */}
       <section className="bg-stone-100 py-20">
         <div className="page-container">
           <div className="flex items-end justify-between mb-8">
@@ -223,8 +218,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ─── TOP AGENTS ──────────────────────────────────────── */}
+      {/* Section */}
       <section className="page-container py-20">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -265,8 +259,7 @@ export default function HomePage() {
           ))}
         </div>
       </section>
-
-      {/* ─── CTA ─────────────────────────────────────────────── */}
+      {/* Section */}
       <section className="bg-ink py-20">
         <div className="page-container text-center">
           <p className="text-gold font-semibold text-sm uppercase tracking-widest mb-3">Ready to Begin?</p>

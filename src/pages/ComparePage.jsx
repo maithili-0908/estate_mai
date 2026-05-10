@@ -14,8 +14,8 @@ const ROWS = [
   ROW("Type", (p) => p.type),
   ROW("Bedrooms", (p) => p.bedrooms),
   ROW("Bathrooms", (p) => p.bathrooms),
-  ROW("Size", (p) => `${p.size.toLocaleString()} ft²`),
-  ROW("Price / ft²", (p) => `$${Math.round(p.price / p.size).toLocaleString()}`),
+  ROW("Size", (p) => `${p.size.toLocaleString()} sq ft`),
+  ROW("Price / sq ft", (p) => `$${Math.round(p.price / p.size).toLocaleString()}`),
   ROW("Year Built", (p) => p.yearBuilt),
   ROW("Garage", (p) => p.garage ? `${p.garage} cars` : "None"),
   ROW("Location", (p) => `${p.city}, ${p.state}`),
@@ -51,7 +51,7 @@ export default function ComparePage() {
       <div className="page-container py-10">
         {compared.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-stone-200 shadow-card">
-            <div className="text-6xl mb-4">⚖️</div>
+            <div className="text-6xl mb-4">No items</div>
             <h2 className="font-serif text-2xl font-bold text-ink mb-2">Nothing to Compare</h2>
             <p className="text-stone-500 text-sm mb-6 max-w-sm mx-auto">
               Browse properties and click "+ Compare" to add them here. You can compare up to 3 at once.

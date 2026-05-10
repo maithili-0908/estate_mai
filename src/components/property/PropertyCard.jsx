@@ -78,7 +78,7 @@ export default function PropertyCard({ property, showCompare = false }) {
           </div>
           <div className="flex items-center gap-1.5 text-xs text-stone-600">
             <FiMaximize className="text-stone-400 text-xs" />
-            <span>{property.size.toLocaleString()} ft²</span>
+            <span>{property.size.toLocaleString()} sq ft</span>
           </div>
           {property.garage > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-stone-600">
@@ -106,7 +106,7 @@ export default function PropertyCard({ property, showCompare = false }) {
                     : "border-stone-200 text-stone-500 hover:border-gold/40 hover:text-gold-700"
                 }`}
               >
-                {inCompare ? "✓ Compare" : "+ Compare"}
+                {inCompare ? "In Compare" : "+ Compare"}
               </button>
             )}
             <Link

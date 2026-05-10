@@ -1,13 +1,11 @@
-﻿# LuxEstate Full Stack
+# LuxEstate Full Stack
 
-LuxEstate is a real-estate platform with a React frontend and a Node.js + MongoDB backend.
+LuxEstate is a real-estate platform with:
+- React frontend (deploy to Netlify)
+- Node.js/Express backend (deploy to Render)
+- MongoDB database (MongoDB Atlas/local MongoDB)
 
-## Features
-- Public browsing: home, listings, map view, agents, property and agent details.
-- Auth: register, login, profile, settings, password update.
-- Agent dashboard: listing CRUD, appointments, messages, analytics view.
-- Admin panel: platform stats, property moderation, user/agent management.
-- Interaction flows: save listings, compare listings, send inquiries, contact agents.
+This repo is configured for a **Netlify + Render + MongoDB** workflow and does **not** require Docker.
 
 ## Tech Stack
 - Frontend: React 18, React Router v6, TailwindCSS, Recharts, React Leaflet
@@ -27,10 +25,10 @@ backend/
 ```
 
 ## Prerequisites
-- Node.js 18+
-- MongoDB running locally (default: `mongodb://127.0.0.1:27017/luxestate`)
+- Node.js 18+ (Node 22 recommended)
+- MongoDB local or MongoDB Atlas
 
-## Setup
+## Local Setup
 ### 1) Install dependencies
 ```bash
 npm install
@@ -47,7 +45,7 @@ Backend (`backend/.env`):
 ```bash
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/luxestate
-JWT_SECRET=luxestate_dev_secret_change_me
+JWT_SECRET=replace-with-a-strong-random-secret
 CORS_ORIGIN=http://localhost:3000
 ```
 
@@ -70,6 +68,38 @@ npm start
 - Frontend: `http://localhost:3000`
 - Backend health: `http://localhost:5000/api/health`
 
+## Deploy (No Docker)
+### Backend on Render
+Use the included `render.yaml` or configure manually.
+
+Manual Render service settings:
+- Runtime: `Node`
+- Root Directory: `backend`
+- Build Command: `npm ci`
+- Start Command: `npm run start`
+- Health Check Path: `/api/health`
+
+Required Render environment variables:
+- `MONGO_URI` = your MongoDB Atlas connection string
+- `JWT_SECRET` = long random secret
+- `CORS_ORIGIN` = comma-separated allowed frontend origins, e.g.
+  `http://localhost:3000,https://your-site.netlify.app`
+
+### Frontend on Netlify
+This repo includes:
+- `netlify.toml`
+- `public/_redirects`
+
+They handle build + SPA route rewrites for React Router.
+
+Required Netlify environment variable:
+- `REACT_APP_API_URL` = Render API URL, e.g.
+  `https://your-render-service.onrender.com/api`
+
+Build settings (already in `netlify.toml`):
+- Build command: `npm run build`
+- Publish directory: `build`
+
 ## Demo Accounts
 | Role  | Email               | Password |
 |-------|---------------------|----------|
@@ -82,7 +112,8 @@ npm start
 - `npm run build` - build frontend production bundle
 - `npm run backend` - run backend in dev mode
 - `npm run backend:start` - run backend in production mode
-- `npm run backend:seed` - seed MongoDB with demo dat
+- `npm run backend:seed` - seed MongoDB with demo data
+- `npm --prefix backend run test:auth` - auth middleware test
 
 ## API Overview
 - Auth: `/api/auth/login`, `/api/auth/register`, `/api/auth/me`

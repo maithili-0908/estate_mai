@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   FiHeart, FiShare2, FiMapPin, FiPhone, FiMail, FiCalendar, FiMaximize,
@@ -15,6 +15,7 @@ export default function PropertyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const {
+    user,
     properties,
     savedProperties,
     toggleSave,
@@ -24,16 +25,36 @@ export default function PropertyDetailPage() {
     sendPropertyInquiry,
   } = useApp();
   const property = properties.find((p) => p.id === id);
+  const isLoggedInUser = user?.role === "user";
 
   const [imgIdx, setImgIdx] = useState(0);
   const [tab, setTab] = useState("overview");
-  const [form, setForm] = useState({ name: "", email: "", phone: "", message: "", type: "viewing" });
+  const [form, setForm] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    message: "",
+    type: "viewing",
+    date: "",
+    time: "",
+  });
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (!isLoggedInUser) return;
+
+    setForm((prev) => ({
+      ...prev,
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+    }));
+  }, [isLoggedInUser, user?.name, user?.email, user?.phone]);
 
   if (!property) return (
     <div className="pt-24 min-h-screen bg-stone-100 flex items-center justify-center">
       <div className="text-center">
-        <div className="text-6xl mb-4">🏚️</div>
+        <div className="text-6xl mb-4">Not found</div>
         <h2 className="font-serif text-2xl font-bold text-ink mb-2">Property Not Found</h2>
         <Link to="/properties" className="btn-primary mt-4">Back to Listings</Link>
       </div>
@@ -47,10 +68,24 @@ export default function PropertyDetailPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await sendPropertyInquiry({
+      const payload = {
         propertyId: property.id,
-        ...form,
-      });
+        type: form.type,
+        message: form.message,
+      };
+
+      if (form.type === "viewing") {
+        payload.date = form.date;
+        payload.time = form.time;
+      }
+
+      if (!isLoggedInUser) {
+        payload.name = form.name;
+        payload.email = form.email;
+        payload.phone = form.phone;
+      }
+
+      await sendPropertyInquiry(payload);
       toast.success("Your inquiry has been sent! The agent will contact you shortly.");
       setSubmitted(true);
     } catch (err) {
@@ -100,7 +135,7 @@ export default function PropertyDetailPage() {
           <div className="flex flex-col items-end gap-3">
             <div className="font-serif text-3xl font-bold text-ink">{property.priceLabel}</div>
             <div className="text-xs text-stone-400">
-              ${Math.round(property.price / property.size).toLocaleString()} / ft²
+              ${Math.round(property.price / property.size).toLocaleString()} / sq ft
             </div>
             <div className="flex gap-2">
               <button onClick={() => { toggleSave(property.id); toast.success(isSaved ? "Removed from saved" : "Saved!"); }}
@@ -113,7 +148,7 @@ export default function PropertyDetailPage() {
               </button>
               <button onClick={() => { toggleCompare(property.id); toast.success(inCompare ? "Removed from compare" : "Added to compare!"); }}
                 className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${inCompare ? "bg-gold/15 border-gold/40 text-gold-700" : "bg-white border-stone-200 text-stone-600 hover:border-gold/40"}`}>
-                {inCompare ? "✓ Comparing" : "+ Compare"}
+                {inCompare ? "In Compare" : "+ Compare"}
               </button>
             </div>
           </div>
@@ -159,7 +194,7 @@ export default function PropertyDetailPage() {
               {[
                 { icon: IoBedOutline, label: "Bedrooms", val: property.bedrooms },
                 { icon: IoWaterOutline, label: "Bathrooms", val: property.bathrooms },
-                { icon: FiMaximize, label: "Square Feet", val: `${property.size.toLocaleString()} ft²` },
+                { icon: FiMaximize, label: "Square Feet", val: `${property.size.toLocaleString()} sq ft` },
                 { icon: MdOutlineDirectionsCar, label: "Garage", val: property.garage ? `${property.garage} cars` : "None" },
               ].map(({ icon: Icon, label, val }) => (
                 <div key={label} className="bg-white rounded-xl p-4 border border-stone-200 text-center shadow-card">
@@ -198,8 +233,8 @@ export default function PropertyDetailPage() {
                         { label: "Bedrooms", val: property.bedrooms },
                         { label: "Bathrooms", val: property.bathrooms },
                         { label: "Garage Spaces", val: property.garage },
-                        { label: "Total Area", val: `${property.size.toLocaleString()} ft²` },
-                        { label: "Price per ft²", val: `$${Math.round(property.price / property.size).toLocaleString()}` },
+                        { label: "Total Area", val: `${property.size.toLocaleString()} sq ft` },
+                        { label: "Price per sq ft", val: `$${Math.round(property.price / property.size).toLocaleString()}` },
                       ].map(({ label, val }) => (
                         <div key={label} className="flex justify-between items-center py-2.5 border-b border-stone-100">
                           <span className="text-xs text-stone-500">{label}</span>
@@ -236,7 +271,7 @@ export default function PropertyDetailPage() {
                     <h3 className="font-serif font-semibold text-lg text-ink mb-4">Location</h3>
                     <div className="h-72 rounded-xl overflow-hidden border border-stone-200">
                       <MapContainer center={[property.lat, property.lng]} zoom={14} className="h-full w-full">
-                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap' />
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='(c) OpenStreetMap' />
                         <Marker position={[property.lat, property.lng]}>
                           <Popup><b>{property.title}</b><br />{property.address}</Popup>
                         </Marker>
@@ -347,14 +382,42 @@ export default function PropertyDetailPage() {
                       Request Info
                     </button>
                   </div>
-                  <input type="text" required placeholder="Your Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="input-field text-sm" />
-                  <input type="email" required placeholder="Email Address" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="input-field text-sm" />
-                  <input type="tel" placeholder="Phone (optional)" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="input-field text-sm" />
+                  {isLoggedInUser ? (
+                    <div className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-500">
+                      Using your account details for name, email, and phone.
+                    </div>
+                  ) : (
+                    <>
+                      <input type="text" required placeholder="Your Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="input-field text-sm" />
+                      <input type="email" required placeholder="Email Address" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="input-field text-sm" />
+                      <input type="tel" placeholder="Phone (optional)" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="input-field text-sm" />
+                    </>
+                  )}
                   {form.type === "viewing" && (
-                    <input type="date" value={form.date || ""} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} className="input-field text-sm" min={new Date().toISOString().split("T")[0]} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        required
+                        value={form.date || ""}
+                        onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                        className="input-field text-sm"
+                        min={new Date().toISOString().split("T")[0]}
+                      />
+                      <input
+                        type="time"
+                        required
+                        value={form.time || ""}
+                        onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                        className="input-field text-sm"
+                      />
+                    </div>
                   )}
                   <textarea
-                    placeholder={form.type === "viewing" ? "Preferred viewing time or additional notes..." : "What would you like to know about this property?"}
+                    placeholder={
+                      form.type === "viewing"
+                        ? "Preferred viewing time or additional notes..."
+                        : "What would you like to know about this property?"
+                    }
                     value={form.message}
                     onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
                     rows={3}
@@ -372,7 +435,7 @@ export default function PropertyDetailPage() {
             <div className="bg-stone-50 rounded-xl border border-stone-200 p-4">
               <p className="text-xs font-semibold text-stone-500 mb-2">Share this property</p>
               <div className="flex gap-2">
-                {["📧 Email", "💬 SMS", "🔗 Copy Link"].map((s) => (
+                {["Email", "SMS", "Copy Link"].map((s) => (
                   <button key={s} onClick={() => toast.success(`Shared via ${s.split(" ")[1]}`)}
                     className="flex-1 text-[11px] py-1.5 rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-gold/40 hover:text-gold-700 transition-all">
                     {s}

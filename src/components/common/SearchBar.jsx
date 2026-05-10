@@ -1,27 +1,47 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiSliders } from "react-icons/fi";
 import { useApp } from "../../context/AppContext";
 
-export default function SearchBar({ compact = false, initialFilters = {} }) {
-  const { filterOptions } = useApp();
-  const navigate = useNavigate();
-  const cities = filterOptions?.cities || ["All Cities"];
-  const propertyTypes = filterOptions?.propertyTypes || ["All"];
-  const priceRanges = filterOptions?.priceRanges || [];
-  const statusOptions = filterOptions?.statusOptions || ["All"];
-  const [filters, setFilters] = useState({
+function normalizeFilters(initialFilters = {}) {
+  return {
     city: initialFilters.city || "",
     type: initialFilters.type || "",
     price: initialFilters.price || "",
     status: initialFilters.status || "",
     beds: initialFilters.beds || "",
     keyword: initialFilters.keyword || "",
-  });
+  };
+}
+
+export default function SearchBar({ compact = false, initialFilters = {}, onSearch = null }) {
+  const { filterOptions } = useApp();
+  const navigate = useNavigate();
+  const cities = filterOptions?.cities || ["All Cities"];
+  const propertyTypes = filterOptions?.propertyTypes || ["All"];
+  const priceRanges = filterOptions?.priceRanges || [];
+  const statusOptions = filterOptions?.statusOptions || ["All"];
+  const [filters, setFilters] = useState(() => normalizeFilters(initialFilters));
 
   const handleChange = (key, val) => setFilters((f) => ({ ...f, [key]: val }));
 
+  useEffect(() => {
+    setFilters(normalizeFilters(initialFilters));
+  }, [
+    initialFilters.city,
+    initialFilters.type,
+    initialFilters.price,
+    initialFilters.status,
+    initialFilters.beds,
+    initialFilters.keyword,
+  ]);
+
   const handleSearch = () => {
+    if (typeof onSearch === "function") {
+      onSearch(filters);
+      return;
+    }
+
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
     navigate(`/properties?${params.toString()}`);
@@ -130,7 +150,7 @@ export default function SearchBar({ compact = false, initialFilters = {} }) {
         <div className="flex items-end">
           <button onClick={() => setFilters({ city: "", type: "", price: "", status: "", beds: "", keyword: "" })}
             className="text-xs text-stone-400 hover:text-gold transition-colors pb-2.5 flex items-center gap-1">
-            ✕ Clear all
+            Clear all
           </button>
         </div>
       </div>

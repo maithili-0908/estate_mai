@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   FiUsers,
@@ -14,7 +14,6 @@ import {
   FiTrash2,
   FiDownload,
   FiBarChart2,
-  FiPieChart,
   FiCalendar,
   FiStar,
   FiShield,
@@ -37,7 +36,7 @@ import {
 import { useApp } from "../context/AppContext";
 import toast from "react-hot-toast";
 
-const ADMIN_TABS = ["Overview", "Properties", "Agents", "Users", "Reports"];
+const ADMIN_TABS = ["Overview", "Properties", "Agents", "Users", "Appointment History"];
 
 const MONTHLY_DATA = [
   { month: "Jul", listings: 42, sales: 28, revenue: 620000 },
@@ -56,6 +55,7 @@ export default function AdminPage() {
     user,
     properties,
     agents,
+    appointments,
     adminStats,
     users,
     pendingApprovals,
@@ -64,7 +64,6 @@ export default function AdminPage() {
     adminDeleteProperty,
     handlePendingProperty,
     exportAdminReport,
-    generateAdminReport,
   } = useApp();
   const [activeTab, setActiveTab] = useState("Overview");
 
@@ -135,14 +134,14 @@ export default function AdminPage() {
             onClick={async () => {
               try {
                 await exportAdminReport();
-                toast.success("Report downloaded!");
+                toast.success("Appointment history exported!");
               } catch (err) {
-                toast.error(err?.response?.data?.message || "Could not export report");
+                toast.error(err?.response?.data?.message || "Could not export appointment history");
               }
             }}
             className="btn-secondary border-gold/40 text-sm py-2"
           >
-            <FiDownload /> Export Report
+            <FiDownload /> Export History
           </button>
         </div>
         <div className="page-container mt-5 flex gap-1 overflow-x-auto scrollbar-hide">
@@ -257,7 +256,7 @@ export default function AdminPage() {
                     <div key={property.id} className="flex items-center gap-4 px-5 py-4 hover:bg-stone-50 transition-colors">
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-ink">{property.title}</p>
-                        <p className="text-xs text-stone-400">By {agent?.name || "Unknown Agent"} · {property.type} · {property.priceLabel}</p>
+                        <p className="text-xs text-stone-400">By {agent?.name || "Unknown Agent"} | {property.type} | {property.priceLabel}</p>
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -454,49 +453,91 @@ export default function AdminPage() {
           </div>
         )}
 
-        {activeTab === "Reports" && (
+        {activeTab === "Appointment History" && (
           <div>
-            <h2 className="font-serif font-bold text-xl text-ink mb-5">Reports & Analytics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {[
-                { title: "Monthly Sales Report", desc: "Revenue breakdown by agent and property type", icon: FiBarChart2 },
-                { title: "User Activity Report", desc: "Registration, login, and engagement metrics", icon: FiUsers },
-                { title: "Listing Performance", desc: "Views, saves, and conversion per listing", icon: FiPieChart },
-              ].map(({ title, desc, icon: Icon }) => (
-                <div key={title} className="bg-white rounded-2xl border border-stone-200 shadow-card p-5">
-                  <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center mb-3">
-                    <Icon className="text-gold text-lg" />
-                  </div>
-                  <h4 className="font-semibold text-sm text-ink mb-1">{title}</h4>
-                  <p className="text-xs text-stone-500 leading-relaxed mb-4">{desc}</p>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await generateAdminReport(title);
-                        toast.success("Generating report...");
-                      } catch (err) {
-                        toast.error(err?.response?.data?.message || "Could not generate report");
-                      }
-                    }}
-                    className="btn-primary text-xs py-2 w-full justify-center"
-                  >
-                    <FiDownload /> Generate PDF
-                  </button>
-                </div>
-              ))}
-            </div>
+            <h2 className="font-serif font-bold text-xl text-ink mb-5">
+              Appointment History ({appointments.length})
+            </h2>
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-stone-50 border-b border-stone-200">
+                    <tr>
+                      {[
+                        "#",
+                        "User",
+                        "Agent",
+                        "Property",
+                        "Date",
+                        "Time",
+                        "Type",
+                        "Status",
+                        "Notes",
+                      ].map((header) => (
+                        <th
+                          key={header}
+                          className="text-left px-4 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wider whitespace-nowrap"
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {appointments.map((appointment, index) => {
+                      const property = properties.find((item) => item.id === appointment.propertyId);
+                      const agent = agents.find((item) => item.id === appointment.agentId);
+                      const bookedUser =
+                        users.find((entry) => entry.id === appointment.clientUserId) ||
+                        users.find((entry) => entry.email === appointment.clientEmail);
 
-            <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-5">
-              <h3 className="font-serif font-semibold text-base text-ink mb-4">Revenue by Month</h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={MONTHLY_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F0EDE6" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value) => [`$${(value / 1000).toFixed(0)}K`]} />
-                  <Bar dataKey="revenue" fill="#C9A84C" radius={[6, 6, 0, 0]} name="Revenue" />
-                </BarChart>
-              </ResponsiveContainer>
+                      return (
+                        <tr key={appointment.id} className="hover:bg-stone-50 transition-colors align-top">
+                          <td className="px-4 py-3 text-xs text-stone-400">{index + 1}</td>
+                          <td className="px-4 py-3">
+                            <p className="text-xs font-semibold text-ink">{bookedUser?.name || appointment.clientName}</p>
+                            <p className="text-[10px] text-stone-400">{appointment.clientEmail || bookedUser?.email || "-"}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-xs font-semibold text-ink">{agent?.name || "Unknown Agent"}</p>
+                            <p className="text-[10px] text-stone-400">{agent?.email || "-"}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-xs font-semibold text-ink whitespace-nowrap">{property?.title || "Unknown Property"}</p>
+                            <p className="text-[10px] text-stone-400">{property?.city || "-"}{property?.state ? `, ${property.state}` : ""}</p>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-stone-600 whitespace-nowrap">{appointment.date}</td>
+                          <td className="px-4 py-3 text-xs text-stone-600 whitespace-nowrap">{appointment.time}</td>
+                          <td className="px-4 py-3">
+                            <span className="tag text-[10px] whitespace-nowrap">{appointment.type}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`badge text-[10px] whitespace-nowrap ${
+                                appointment.status === "Confirmed"
+                                  ? "badge-green"
+                                  : appointment.status === "Cancelled"
+                                    ? "bg-red-100 text-red-500"
+                                    : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {appointment.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-stone-500 min-w-[220px]">
+                            {appointment.notes || "No notes provided"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {appointments.length === 0 && (
+                <div className="px-5 py-8 text-center text-sm text-stone-400">
+                  No appointments booked yet.
+                </div>
+              )}
             </div>
           </div>
         )}

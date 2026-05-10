@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 
@@ -13,12 +13,42 @@ const { notFoundHandler, errorHandler } = require("./middleware/error");
 
 const app = express();
 
+function getAllowedOrigins() {
+  const raw = String(process.env.CORS_ORIGIN || "").trim();
+  if (!raw) return ["http://localhost:3000"];
+
+  const normalize = (value) => String(value).trim().replace(/\/+$/, "");
+
+  return raw
+    .split(",")
+    .map((origin) => normalize(origin))
+    .filter(Boolean);
+}
+
+const allowedOrigins = getAllowedOrigins();
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = String(origin).trim().replace(/\/+$/, "");
+
+      if (
+        allowedOrigins.includes("*") ||
+        allowedOrigins.includes(normalizedOrigin)
+      ) {
+        return callback(null, true);
+      }
+
+      const err = new Error(`CORS origin not allowed: ${origin}`);
+      err.statusCode = 403;
+      return callback(err);
+    },
     credentials: true,
   })
 );
+
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
@@ -39,4 +69,3 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 module.exports = app;
-

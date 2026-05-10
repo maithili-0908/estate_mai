@@ -54,8 +54,8 @@ export default function RegisterPage() {
         {/* Role selector */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           {[
-            { id: "user", label: "Property Buyer / Renter", icon: "🏠", desc: "Browse and save listings" },
-            { id: "agent", label: "Real Estate Agent", icon: "🏆", desc: "List and manage properties" },
+            { id: "user", label: "Property Buyer / Renter", icon: "U", desc: "Browse and save listings" },
+            { id: "agent", label: "Real Estate Agent", icon: "A", desc: "List and manage properties" },
           ].map((r) => (
             <button
               key={r.id}

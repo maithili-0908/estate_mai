@@ -157,6 +157,11 @@ async function revokeSession(_req, res) {
 
 async function deleteMyAccount(req, res, next) {
   try {
+    if (req.user.role !== "user") {
+      res.status(403).json({ message: "Only user accounts can be deleted from profile" });
+      return;
+    }
+
     const user = await User.findOne({ id: req.user.id });
     if (!user) {
       res.status(404).json({ message: "User not found" });

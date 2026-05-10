@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { FiGrid, FiList, FiSliders, FiX, FiChevronDown } from "react-icons/fi";
 import PropertyCard from "../components/property/PropertyCard";
 import SearchBar from "../components/common/SearchBar";
 import { useApp } from "../context/AppContext";
+import { api } from "../lib/api";
 
 const SORT_OPTIONS = [
   { label: "Newest First", value: "newest" },
@@ -19,25 +20,133 @@ export default function PropertiesPage() {
   const propertyTypes = filterOptions?.propertyTypes || ["All"];
   const cities = filterOptions?.cities || ["All Cities"];
   const statusOptions = filterOptions?.statusOptions || ["All"];
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState("grid");
   const [sort, setSort] = useState("newest");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchingServer, setSearchingServer] = useState(false);
+  const [serverFilteredProperties, setServerFilteredProperties] = useState(null);
+  const readSearchFilters = useCallback(
+    () => ({
+      keyword: searchParams.get("keyword") || "",
+      type: searchParams.get("type") || "",
+      city: searchParams.get("city") || "",
+      status: searchParams.get("status") || "",
+      price: searchParams.get("price") || "",
+      beds: searchParams.get("beds") || "",
+    }),
+    [searchParams]
+  );
 
   const [filters, setFilters] = useState({
-    keyword: searchParams.get("keyword") || "",
-    type: searchParams.get("type") || "",
-    city: searchParams.get("city") || "",
-    status: searchParams.get("status") || "",
-    price: searchParams.get("price") || "",
-    beds: searchParams.get("beds") || "",
+    ...readSearchFilters(),
     minSize: "",
     maxSize: "",
     amenities: [],
     yearBuilt: "",
   });
+  const topSearchFilters = useMemo(
+    () => ({
+      keyword: filters.keyword,
+      type: filters.type,
+      city: filters.city,
+      status: filters.status,
+      price: filters.price,
+      beds: filters.beds,
+    }),
+    [filters.keyword, filters.type, filters.city, filters.status, filters.price, filters.beds]
+  );
+  const hasTopSearchFilters = useMemo(
+    () => Object.values(topSearchFilters).some((value) => Boolean(String(value || "").trim())),
+    [topSearchFilters]
+  );
 
   const setFilter = (key, val) => setFilters((f) => ({ ...f, [key]: val }));
+
+  useEffect(() => {
+    const queryFilters = readSearchFilters();
+    setFilters((prev) => {
+      const next = { ...prev, ...queryFilters };
+      const hasChanged =
+        prev.keyword !== next.keyword ||
+        prev.type !== next.type ||
+        prev.city !== next.city ||
+        prev.status !== next.status ||
+        prev.price !== next.price ||
+        prev.beds !== next.beds;
+
+      return hasChanged ? next : prev;
+    });
+  }, [readSearchFilters]);
+
+  useEffect(() => {
+    let active = true;
+
+    const runSearch = async () => {
+      if (!hasTopSearchFilters) {
+        if (active) {
+          setServerFilteredProperties(null);
+          setSearchingServer(false);
+        }
+        return;
+      }
+
+      setSearchingServer(true);
+
+      try {
+        const params = {};
+
+        if (topSearchFilters.keyword) params.keyword = topSearchFilters.keyword;
+        if (topSearchFilters.type) params.type = topSearchFilters.type;
+        if (topSearchFilters.city) params.city = topSearchFilters.city;
+        if (topSearchFilters.status) params.status = topSearchFilters.status;
+        if (topSearchFilters.beds) params.beds = parseInt(topSearchFilters.beds, 10);
+
+        if (topSearchFilters.price) {
+          const range = priceRanges.find((entry) => entry.label === topSearchFilters.price);
+          if (range) {
+            if (Number.isFinite(range.min)) params.minPrice = range.min;
+            if (Number.isFinite(range.max)) params.maxPrice = range.max;
+          }
+        }
+
+        const { data } = await api.get("/properties", { params });
+        if (active) setServerFilteredProperties(Array.isArray(data) ? data : []);
+      } catch (_err) {
+        if (active) setServerFilteredProperties(null);
+      } finally {
+        if (active) setSearchingServer(false);
+      }
+    };
+
+    runSearch();
+
+    return () => {
+      active = false;
+    };
+  }, [hasTopSearchFilters, priceRanges, topSearchFilters]);
+
+  const handleTopSearch = useCallback(
+    (nextFilters) => {
+      const queryFilters = {
+        keyword: String(nextFilters?.keyword || "").trim(),
+        type: nextFilters?.type || "",
+        city: nextFilters?.city || "",
+        status: nextFilters?.status || "",
+        price: nextFilters?.price || "",
+        beds: nextFilters?.beds || "",
+      };
+
+      setFilters((prev) => ({ ...prev, ...queryFilters }));
+
+      const params = new URLSearchParams();
+      Object.entries(queryFilters).forEach(([key, value]) => {
+        if (value) params.set(key, value);
+      });
+      setSearchParams(params);
+    },
+    [setSearchParams]
+  );
 
   const priceRange = useMemo(() => {
     const r = priceRanges.find((r) => r.label === filters.price);
@@ -45,7 +154,8 @@ export default function PropertiesPage() {
   }, [filters.price]);
 
   const filtered = useMemo(() => {
-    let list = [...properties];
+    const source = Array.isArray(serverFilteredProperties) ? serverFilteredProperties : properties;
+    let list = [...source];
 
     if (filters.keyword) {
       const kw = filters.keyword.toLowerCase();
@@ -79,7 +189,7 @@ export default function PropertiesPage() {
     }
 
     return list;
-  }, [properties, filters, sort, priceRange]);
+  }, [filters, priceRange, properties, serverFilteredProperties, sort]);
 
   const activeFilterCount = Object.entries(filters).filter(([k, v]) =>
     k !== "amenities" ? Boolean(v) : v.length > 0
@@ -104,7 +214,7 @@ export default function PropertiesPage() {
       <div className="page-container py-8">
         {/* Search Bar */}
         <div className="mb-6">
-          <SearchBar compact initialFilters={filters} />
+          <SearchBar compact initialFilters={filters} onSearch={handleTopSearch} />
         </div>
 
         {/* Controls */}
@@ -128,6 +238,9 @@ export default function PropertiesPage() {
             </button>
             <span className="text-sm text-stone-500">
               <span className="font-semibold text-ink">{filtered.length}</span> properties found
+              {searchingServer && hasTopSearchFilters && (
+                <span className="ml-2 text-xs text-stone-400">Updating...</span>
+              )}
             </span>
           </div>
 
@@ -246,7 +359,7 @@ export default function PropertiesPage() {
 
                 {/* Size */}
                 <div className="mb-5">
-                  <label className="block text-[10.5px] font-semibold text-stone-400 uppercase tracking-wider mb-2">Size (ft²)</label>
+                  <label className="block text-[10.5px] font-semibold text-stone-400 uppercase tracking-wider mb-2">Size (sq ft)</label>
                   <div className="flex gap-2">
                     <input type="number" placeholder="Min" value={filters.minSize} onChange={(e) => setFilter("minSize", e.target.value)} className="input-field text-xs flex-1" />
                     <input type="number" placeholder="Max" value={filters.maxSize} onChange={(e) => setFilter("maxSize", e.target.value)} className="input-field text-xs flex-1" />
@@ -283,7 +396,7 @@ export default function PropertiesPage() {
           <div className="flex-1 min-w-0">
             {filtered.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-2xl border border-stone-200">
-                <div className="text-5xl mb-4">🏚️</div>
+                <div className="text-5xl mb-4">No properties</div>
                 <h3 className="font-serif text-xl font-semibold text-ink mb-2">No properties found</h3>
                 <p className="text-stone-500 text-sm mb-5">Try adjusting your filters or search terms.</p>
                 <button

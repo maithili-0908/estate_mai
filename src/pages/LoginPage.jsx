@@ -54,7 +54,7 @@ export default function LoginPage() {
 
         {/* Demo Account Quick Login */}
         <div className="bg-gold/10 border border-gold/25 rounded-2xl p-4 mb-6">
-          <p className="text-xs font-semibold text-gold-700 uppercase tracking-wider mb-3">Demo Accounts — Click to Fill</p>
+          <p className="text-xs font-semibold text-gold-700 uppercase tracking-wider mb-3">Demo Accounts - Click to Fill</p>
           <div className="grid grid-cols-3 gap-2">
             {DEMO_USERS.map((u) => (
               <button key={u.role} onClick={() => quickLogin(u)}
@@ -92,7 +92,7 @@ export default function LoginPage() {
                 <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 text-sm" />
                 <input
                   type={showPw ? "text" : "password"} required
-                  placeholder="••••••••"
+                  placeholder="********"
                   value={form.password}
                   onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                   className="input-field pl-10 pr-10"

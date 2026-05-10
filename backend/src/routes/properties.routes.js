@@ -6,11 +6,11 @@ const {
   updateProperty,
   deleteProperty,
 } = require("../controllers/properties.controller");
-const { protect, requireRole } = require("../middleware/auth");
+const { protect, requireRole, optionalAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
-router.get("/", listProperties);
+router.get("/", optionalAuth, listProperties);
 router.get("/:id", getPropertyById);
 router.post("/", protect, requireRole("agent", "admin"), createProperty);
 router.patch("/:id", protect, requireRole("agent", "admin"), updateProperty);

@@ -166,7 +166,7 @@ export default function PropertyFormModal({ property, onClose }) {
                   <input type="number" min={0} required value={form.bathrooms} onChange={(e) => set("bathrooms", e.target.value)} className="input-field" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5">Size (ft²) *</label>
+                  <label className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5">Size (sq ft) *</label>
                   <input type="number" min={0} required value={form.size} onChange={(e) => set("size", e.target.value)} className="input-field" />
                 </div>
                 <div>
@@ -221,10 +221,10 @@ export default function PropertyFormModal({ property, onClose }) {
         <div className="flex items-center justify-between p-5 border-t border-stone-200 sticky bottom-0 bg-white">
           <button onClick={step > 1 ? () => setStep(s => s - 1) : onClose}
             className="btn-ghost border border-stone-200 rounded-xl">
-            {step > 1 ? "← Back" : "Cancel"}
+            {step > 1 ? "<- Back" : "Cancel"}
           </button>
           {step < 3 ? (
-            <button onClick={() => setStep(s => s + 1)} className="btn-primary">Continue →</button>
+            <button onClick={() => setStep(s => s + 1)} className="btn-primary">Continue -></button>
           ) : (
             <button onClick={handleSubmit} disabled={loading} className="btn-primary disabled:opacity-60">
               {loading ? (

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AppProvider } from "./context/AppContext";
@@ -21,7 +21,6 @@ import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import AdminPage from "./pages/AdminPage";
 import ProfilePage from "./pages/ProfilePage";
-import SettingsPage from "./pages/SettingsPage";
 
 // Pages that should NOT have the footer (full-height map, etc.)
 const NO_FOOTER_PATHS = ["/map"];
@@ -29,6 +28,10 @@ const NO_FOOTER_PATHS = ["/map"];
 function AppShell() {
   const location = useLocation();
   const showFooter = !NO_FOOTER_PATHS.includes(location.pathname);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -48,7 +51,6 @@ function AppShell() {
           <Route path="/dashboard"      element={<DashboardPage />} />
           <Route path="/admin"          element={<AdminPage />} />
           <Route path="/profile"        element={<ProfilePage />} />
-          <Route path="/settings"       element={<SettingsPage />} />
           {/* 404 */}
           <Route path="*" element={
             <div className="pt-24 min-h-screen bg-stone-100 flex items-center justify-center text-center px-4">

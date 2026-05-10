@@ -6,6 +6,7 @@ const {
   markNotificationsRead,
   createInquiry,
   sendAgentMessage,
+  replyToMessage,
   updateAppointmentStatus,
   markMessageRead,
 } = require("../controllers/interactions.controller");
@@ -20,6 +21,7 @@ router.post("/notifications/read-all", protect, markNotificationsRead);
 
 router.post("/inquiries", optionalAuth, createInquiry);
 router.post("/agents/:agentId/message", optionalAuth, sendAgentMessage);
+router.post("/messages/:id/reply", protect, replyToMessage);
 
 router.patch("/appointments/:id/status", protect, updateAppointmentStatus);
 router.patch("/messages/:id/read", protect, markMessageRead);

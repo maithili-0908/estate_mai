@@ -270,6 +270,17 @@ export function AppProvider({ children }) {
     [loadBootstrap]
   );
 
+  const replyToMessage = useCallback(
+    async (messageId, message) => {
+      const { data } = await api.post(`/interactions/messages/${messageId}/reply`, {
+        message,
+      });
+      await loadBootstrap({ silent: true });
+      return data;
+    },
+    [loadBootstrap]
+  );
+
   const updateAppointmentStatus = useCallback(
     async (id, status) => {
       const { data } = await api.patch(`/interactions/appointments/${id}/status`, { status });
@@ -376,6 +387,7 @@ export function AppProvider({ children }) {
     deleteMyAccount,
     sendPropertyInquiry,
     sendAgentMessage,
+    replyToMessage,
     updateAppointmentStatus,
     markMessageRead,
     suspendAgent,

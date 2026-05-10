@@ -64,9 +64,15 @@ async function register(req, res, next) {
     } = req.body;
 
     const emailLower = String(email || "").toLowerCase().trim();
+    const normalizedRole = String(role || "user").toLowerCase().trim();
 
     if (!emailLower || !password) {
       res.status(400).json({ message: "Email and password are required" });
+      return;
+    }
+
+    if (!["user", "agent"].includes(normalizedRole)) {
+      res.status(400).json({ message: "Role must be 'user' or 'agent'" });
       return;
     }
 
@@ -87,7 +93,7 @@ async function register(req, res, next) {
     const userId = generateId("u");
     let agentId = null;
 
-    if (role === "agent") {
+    if (normalizedRole === "agent") {
       const nextIndex = (await Agent.countDocuments()) + 1;
       agentId = `a${nextIndex}`;
 
@@ -119,7 +125,7 @@ async function register(req, res, next) {
       name: fullName,
       email: emailLower,
       password,
-      role,
+      role: normalizedRole,
       avatar: buildRandomAvatar(),
       phone: phone || "",
       agentId,

@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   FiBell,
@@ -361,10 +361,10 @@ export default function SettingsPage() {
                       >
                         <option value="en">English (US)</option>
                         <option value="en-gb">English (UK)</option>
-                        <option value="fr">Français</option>
-                        <option value="es">Español</option>
+                        <option value="fr">Fran�ais</option>
+                        <option value="es">Espa�ol</option>
                         <option value="de">Deutsch</option>
-                        <option value="zh">??</option>
+                        <option value="zh">Chinese</option>
                       </select>
                     </div>
                   </div>
@@ -501,7 +501,7 @@ export default function SettingsPage() {
                           {session.device}
                           {session.current && <span className="badge badge-green text-[9px]">Current</span>}
                         </p>
-                        <p className="text-xs text-stone-400">{session.location} · {session.time}</p>
+                        <p className="text-xs text-stone-400">{session.location} | {session.time}</p>
                       </div>
                       {!session.current && (
                         <button

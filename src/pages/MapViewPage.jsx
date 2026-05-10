@@ -46,7 +46,7 @@ export default function MapViewPage() {
       {/* Top bar */}
       <div className="bg-white border-b border-stone-200 px-4 py-3 flex items-center gap-3 flex-shrink-0 z-10">
         <h1 className="font-serif font-bold text-ink text-lg">Map View</h1>
-        <span className="text-xs text-stone-400">— {filtered.length} properties</span>
+        <span className="text-xs text-stone-400">- {filtered.length} properties</span>
         <div className="ml-auto flex items-center gap-2">
           <button onClick={() => setFiltersOpen(!filtersOpen)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-all ${filtersOpen ? "bg-gold text-ink border-gold" : "border-stone-200 text-stone-600 hover:border-gold/40 bg-white"}`}>
@@ -105,7 +105,7 @@ export default function MapViewPage() {
                     </div>
                     <div className="font-bold text-sm text-gold-700">{formatPrice(p.price)}</div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-stone-400">{p.bedrooms} bd · {p.bathrooms} ba</span>
+                      <span className="text-[10px] text-stone-400">{p.bedrooms} bd | {p.bathrooms} ba</span>
                       <span className={`badge ${p.status === "For Sale" ? "badge-gold" : "badge-dark"} text-[9px] py-0.5`}>{p.status}</span>
                     </div>
                   </div>
@@ -125,7 +125,7 @@ export default function MapViewPage() {
           >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='© OpenStreetMap contributors'
+              attribution='(c) OpenStreetMap contributors'
             />
             {filtered.map((p) => (
               <Marker
@@ -143,11 +143,11 @@ export default function MapViewPage() {
                     <div className="flex items-center gap-3 text-xs text-stone-500 mb-3">
                       <span>{p.bedrooms} bd</span>
                       <span>{p.bathrooms} ba</span>
-                      <span>{p.size.toLocaleString()} ft²</span>
+                      <span>{p.size.toLocaleString()} sq ft</span>
                     </div>
                     <a href={`/properties/${p.id}`}
                       className="block text-center bg-ink text-white text-xs font-semibold py-2 rounded-lg hover:bg-ink-400 transition-colors">
-                      View Details →
+                      View Details ->
                     </a>
                   </div>
                 </Popup>

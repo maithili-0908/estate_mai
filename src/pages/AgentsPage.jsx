@@ -1,10 +1,18 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { FiSearch, FiStar, FiMapPin, FiPhone, FiMail, FiArrowRight } from "react-icons/fi";
+import {
+  FiSearch,
+  FiStar,
+  FiMapPin,
+  FiPhone,
+  FiMail,
+  FiArrowRight,
+  FiMessageSquare,
+} from "react-icons/fi";
 import { useApp } from "../context/AppContext";
 
 export default function AgentsPage() {
-  const { agents } = useApp();
+  const { agents, user } = useApp();
   const [search, setSearch] = useState("");
   const [specialty, setSpecialty] = useState("");
 
@@ -125,9 +133,23 @@ export default function AgentsPage() {
                     <Link to={`/agents/${agent.id}`} className="btn-primary text-xs py-2 px-4 flex-1 justify-center">
                       View Profile
                     </Link>
-                    <a href={`mailto:${agent.email}`} className="p-2 rounded-xl border border-stone-200 text-stone-500 hover:border-gold/40 hover:text-gold transition-all">
-                      <FiMail className="text-sm" />
-                    </a>
+                    {user?.role === "user" ? (
+                      <Link
+                        to={`/agents/${agent.id}?contact=1`}
+                        className="p-2 rounded-xl border border-stone-200 text-stone-500 hover:border-gold/40 hover:text-gold transition-all"
+                        title={`Message ${agent.name}`}
+                      >
+                        <FiMessageSquare className="text-sm" />
+                      </Link>
+                    ) : (
+                      <a
+                        href={`mailto:${agent.email}`}
+                        className="p-2 rounded-xl border border-stone-200 text-stone-500 hover:border-gold/40 hover:text-gold transition-all"
+                        title={`Email ${agent.name}`}
+                      >
+                        <FiMail className="text-sm" />
+                      </a>
+                    )}
                     <a href={`tel:${agent.phone}`} className="p-2 rounded-xl border border-stone-200 text-stone-500 hover:border-gold/40 hover:text-gold transition-all">
                       <FiPhone className="text-sm" />
                     </a>
